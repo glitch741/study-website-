@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Study Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        #word-input, #test-area, #login-area, #register-area, #saved-tests-area {
+            display: none;
+        }
+        input[type="text"], input[type="password"], input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #218838;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .profile-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+        }
+        .profile-icon img {
+            width: 40px;
+            height: 40px;
+        }
+        #saved-tests-area {
+            display: none;
+            margin-top: 20px;
+        }
+        .saved-test {
+            margin: 5px 0;
+            cursor: pointer;
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Custom Study Test</h1>
+        
+        <!-- Profile Icon -->
+        <div class="profile-icon" id="profile-icon" title="View Saved Tests">
+            <img src="https://via.placeholder.com/40" alt="Profile Icon">
+        </div>
+
+        <!-- Login Area -->
+        <div id="login-area">
+            <h2>Login</h2>
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button class="btn" id="login-button">Login</button>
+            <p class="error" id="login-error"></p>
+            <p>Don't have an account? <span id="show-register">Register here</span></p>
+        </div>
+
+        <!-- Register Area -->
+        <div id="register-area">
+            <h2>Register</h2>
+            <input type="email" id="register-email" placeholder="Email" required>
+            <input type="password" id="register-password" placeholder="Password" required>
+            <button class="btn" id="register-button">Register</button>
+            <p class="error" id="register-error"></p>
+            <p>Already have an account? <span id="show-login">Login here</span></p>
+        </div>
+
+        <!-- Phase 1: Input Questions and Answers -->
+        <div id="word-input">
+            <h2>Input Questions and Answers</h2>
+            <p>Enter a question and its correct answer:</p>
+            <div id="word-list">
+                <!-- Dynamic input fields for question-answer pairs -->
+            </div>
+            <button class="btn" id="add-word">Add Question</button>
+            <button class="btn" id="start-test">Start Test</button>
+            <p class="error" id="input-error"></p>
+        </div>
+
+        <!-- Phase 2: Test the Student -->
+        <div id="test-area">
+            <h2>Test: Answer the Questions</h2>
+            <div id="test-question">
+                <p>Question: <span id="question"></span></p>
+                <input type="text" id="answer" placeholder="Enter your answer">
+            </div>
+            <button class="btn" id="submit-answer">Submit Answer</button>
+        </div>
+
+        <!-- Phase 3: Results -->
+        <div id="results-area" style="display:none;">
+            <h2>Test Results</h2>
+            <p id="test-score"></p>
+            <div id="wrong-answers">
+                <!-- Wrong answers will be displayed here -->
+            </div>
+            <button class="btn" id="restart-test">Start New Test</button>
+        </div>
+
+        <!-- Saved Tests Area -->
+        <div id="saved-tests-area">
+            <h2>Saved Tests</h2>
+            <div id="saved-tests-list"></div>
+            <button class="btn" id="close-saved-tests">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+        let answers = [];
+        let testQuestions = [];
+        let currentTestIndex = 0;
+        let correctAnswers = 0;
+        let wrongAnswers = [];
+        const users = [];
+
+        // Load saved tests from localStorage
+        function loadSavedTests() {
+            const savedTests = JSON.parse(localStorage.getItem('savedTests')) || [];
+            return savedTests;
+        }
+
+        // Save tests to localStorage
+        function saveTest(name) {
+            const savedTests = loadSavedTests();
+            savedTests.push({ name, questions, answers });
+            localStorage.setItem('savedTests', JSON.stringify(savedTests));
+        }
+
+        // Show the saved tests
+        function showSavedTests() {
+            const savedTests = loadSavedTests();
+            const savedTestsList = document.getElementById('saved-tests-list');
+            savedTestsList.innerHTML = '';
+
+            savedTests.forEach((test, index) => {
+                const testItem = document.createElement('div');
+                testItem.classList.add('saved-test');
+                testItem.innerText = test.name;
+                testItem.onclick = () => loadTest(test);
+                savedTestsList.appendChild(testItem);
+            });
+            document.getElementById('saved-tests-area').style.display = 'block';
+        }
+
+        // Load a saved test into the input fields
+        function loadTest(test) {
+            questions = test.questions;
+            answers = test.answers;
+            const wordList = document.getElementById('word-list');
+            wordList.innerHTML = '';
+            questions.forEach((question, index) => {
+                wordList.innerHTML += `
+                    <input type="text" id="question-${index}" placeholder="Question" value="${question}" required>
+                    <input type="text" id="answer-${index}" placeholder="Correct Answer" value="${answers[index]}" required>
+                `;
+            });
+            showWordInput();
+            document.getElementById('saved-tests-area').style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showLogin();
+            document.getElementById('profile-icon').onclick = showSavedTests;
+            document.getElementById('close-saved-tests').onclick = () => {
+                document.getElementById('saved-tests-area').style.display = 'none';
+            };
+        });
+
+        // Show Login Area
+        function showLogin() {
+            document.getElementById('login-area').style.display = 'block';
+            document.getElementById('register-area').style.display = 'none';
+            document.getElementById('word-input').style.display = 'none';
+            document.getElementById('test-area').style.display = 'none';
+            document.getElementById('results-area').style.display = 'none';
+            document.getElementById('saved-tests-area').style.display = 'none';
+        }
+
+        // Show Register Area
+        function showRegister() {
+            document.getElementById('register-area').style.display = 'block';
+            document.getElementById('login-area').style.display = 'none';
+        }
+
+        // Show Word Input Area
+        function showWordInput() {
+            document.getElementById('word-input').style.display = 'block';
+            document.getElementById('login-area').style.display = 'none';
+            document.getElementById('register-area').style.display = 'none';
+            document.getElementById('test-area').style.display = 'none';
+            document.getElementById('results-area').style.display = 'none';
+            document.getElementById('input-error').innerText = ''; // Clear any input error
+            document.getElementById('word-list').innerHTML = ''; // Clear previous inputs
+        }
+
+        // Add a new question-answer pair input
+        document.getElementById('add-word').addEventListener('click', () => {
+            const wordList = document.getElementById('word-list');
+            const index = questions.length;
+
+            wordList.innerHTML += `
+                <input type="text" id="question-${index}" placeholder="Question" required>
+                <input type="text" id="answer-${index}" placeholder="Correct Answer" required>
+            `;
+        });
+
+        // Start the test
+        document.getElementById('start-test').addEventListener('click', () => {
+            questions = [];
+            answers = [];
+
+            // Collect all question and answer inputs
+            const questionInputs = document.querySelectorAll('[id^=question-]');
+            const answerInputs = document.querySelectorAll('[id^=answer-]');
+            
+            for (let i = 0; i < questionInputs.length; i++) {
+                const question = questionInputs[i].value.trim();
+                const answer = answerInputs[i].value.trim();
+                
+                if (question && answer) {
+                    questions.push(question);
+                    answers.push(answer);
+                }
+            }
+
+            if (questions.length < 1) {
+                document.getElementById('input-error').innerText = 'Please add at least one question.';
+                return;
+            }
+
+            const testName = prompt("Please name your test:");
+            if (testName) {
+                saveTest(testName);
+            }
+
+            // Shuffle questions before starting the test
+            testQuestions = shuffleArray(questions.slice());
+            currentTestIndex = 0;
+            correctAnswers = 0;
+            wrongAnswers = [];
+            showTestQuestion();
+        });
+
+        // Shuffle the questions
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Display the current test question
+        function showTestQuestion() {
+            if (currentTestIndex < testQuestions.length) {
+                document.getElementById('question').innerText = testQuestions[currentTestIndex];
+                document.getElementById('test-area').style.display = 'block';
+            } else {
+                showResults();
+            }
+        }
+
+        // Submit the answer
+        document.getElementById('submit-answer').addEventListener('click', () => {
+            const userAnswer = document.getElementById('answer').value.trim();
+            if (userAnswer.toLowerCase() === answers[questions.indexOf(testQuestions[currentTestIndex])].toLowerCase()) {
+                correctAnswers++;
+            } else {
+                wrongAnswers.push({
+                    question: testQuestions[currentTestIndex],
+                    correctAnswer: answers[questions.indexOf(testQuestions[currentTestIndex])]
+                });
+            }
+            currentTestIndex++;
+            document.getElementById('answer').value = '';
+            showTestQuestion();
+        });
+
+        // Show the results
+        function showResults() {
+            document.getElementById('test-area').style.display = 'none';
+            document.getElementById('results-area').style.display = 'block';
+            document.getElementById('test-score').innerText = `You answered ${correctAnswers} out of ${testQuestions.length} questions correctly.`;
+            const wrongAnswersList = document.getElementById('wrong-answers');
+            wrongAnswersList.innerHTML = '';
+            wrongAnswers.forEach(item => {
+                wrongAnswersList.innerHTML += `<p>Question: ${item.question} - Correct Answer: ${item.correctAnswer}</p>`;
+            });
+        }
+
+        // Restart the test
+        document.getElementById('restart-test').addEventListener('click', () => {
+            document.getElementById('results-area').style.display = 'none';
+            showWordInput();
+        });
+
+        // Registration Logic
+        document.getElementById('register-button').addEventListener('click', () => {
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value.trim();
+
+            if (!email || !password) {
+                document.getElementById('register-error').innerText = 'Please enter a valid email and password.';
+                return;
+            }
+
+            if (users.some(user => user.email === email)) {
+                document.getElementById('register-error').innerText = 'Email is already registered.';
+                return;
+            }
+
+            users.push({ email, password });
+            document.getElementById('register-error').innerText = 'Registration successful. Please log in.';
+            document.getElementById('register-email').value = '';
+            document.getElementById('register-password').value = '';
+        });
+
+        // Login Logic
+        document.getElementById('login-button').addEventListener('click', () => {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+
+            const user = users.find(user => user.email === email && user.password === password);
+
+            if (user) {
+                document.getElementById('login-error').innerText = '';
+                showWordInput();
+            } else {
+                document.getElementById('login-error').innerText = 'Invalid email or password.';
+            }
+        });
+
+        // Show Registration Area
+        document.getElementById('show-register').onclick = showRegister;
+
+        // Show Login Area
+        document.getElementById('show-login').onclick = showLogin;
+
+    </script>
+</body>
+</html>
